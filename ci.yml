@@ -1,0 +1,59 @@
+schemaVersion: v0.2
+prepare:
+  steps:
+    - name: Create venv
+      command: cd backend && if [ ! -d ".venv" ]; then  uv venv --python 3.11; fi;
+    - name: Install python dependencies
+      command: cd backend && uv pip install -r requirements.txt -U
+    - name: update node
+      command: sudo n 22.10
+    - name: install node dependencies
+      command: rm -rf node_modules && npm i
+test:
+  steps:
+    - name: reinstall node modules
+      command: true || (rm -rf node_modules && npm install)
+    - name: reinstall python requirements
+      command: true || (cd backend && uv pip install -r requirements.txt -U)
+    - name: Build frontend
+      command: npm run build
+run:
+  frontend:
+    steps:
+      - name: update node
+        command: sudo n 22.10
+      - name: Start frontend
+        command: export NODE_OPTIONS="--max-old-space-size=4096" && npm run preview --
+          --host 0.0.0.0 --port 3000
+    plan: 22
+    replicas: 1
+    isPublic: true
+    network:
+      path: /
+      stripPath: false
+  backend:
+    steps:
+      - name: Start Backend
+        command: npx serve & cd backend &&  source .venv/bin/activate && ./start.sh
+    plan: 22
+    replicas: 1
+    isPublic: true
+    network:
+      ports:
+        - port: 3000
+          isPublic: true
+        - port: 8080
+          isPublic: true
+      paths:
+        - port: 8080
+          path: /api
+          stripPath: false
+        - port: 8080
+          path: /ws
+          stripPath: false
+        - port: 8080
+          path: /ollama
+          stripPath: false
+        - port: 8080
+          path: /openai
+          stripPath: false
